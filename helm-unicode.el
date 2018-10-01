@@ -25,19 +25,22 @@
 
 (require 'helm)
 (require 'helm-utils)
+(require 'helm-font)
 
 (defvar *helm-unicode/names* '()
-  "Internal cache variable for unicode characters.  Should not be changed by the user.")
+  "Internal cache variable for unicode characters. Should not be changed by the user.")
 
 (defconst +helm-unicode/ucs-names+ (ucs-names))
 (defconst +helm-unicode/ucs-names-keys+ (hash-table-keys +helm-unicode/ucs-names+))
-(defvar helm-unicode/progress-reporter nil)
+(defvar helm-unicode/progress-reporter nil) ;; holds user state
+(defvar helm-unicode/history nil) ;; holds user state
 
 (defun helm-unicode-format-char-pair (char-pair)
   "Formats a char pair for helm unicode search."
   (let ((name (car char-pair))
         (symbol (cdr char-pair)))
-    (format "%s %c" name symbol)))
+    (propertize (format "%s %c" name symbol)
+                'face 'helm-ucs-char)))
 
 ;; (defun helm-unicode-build-candidates ()
 ;;   "Builds the candidate list."
@@ -61,6 +64,7 @@
   "Builds the candidate list."
   (cond ((and (>= (length *helm-unicode/names*) (length +helm-unicode/ucs-names-keys+))
               (timerp helm-unicode-timer))
+         (and show-progress? (progress-reporter-done helm-unicode/progress-reporter))
          (cancel-timer helm-unicode-timer))
         ((< (length *helm-unicode/names*) (length +helm-unicode/ucs-names-keys+))
          (let ((candidate-list))
@@ -68,24 +72,27 @@
                 (null helm-unicode/progress-reporter)
                 (setq helm-unicode/progress-reporter
                       (make-progress-reporter "Collecting Unicode symbols… "
-                                              (length *helm-unicode/names*)
-                                              (length +helm-unicode/ucs-names-keys+))))
+                                              0
+                                              (length +helm-unicode/ucs-names-keys+)
+                                              (length *helm-unicode/names*))))
            (dolist (k (subseq +helm-unicode/ucs-names-keys+
                               (length *helm-unicode/names*)
-                              (+ (length *helm-unicode/names*) increment)))
-             (add-to-list 'candidate-list
-                          (helm-unicode-format-char-pair
-                           (cons k (gethash k +helm-unicode/ucs-names+)))))
-           (setq *helm-unicode/names* (nconc *helm-unicode/names* candidate-list))
-           (and show-progress?
-                (progress-reporter-update helm-unicode/progress-reporter (length *helm-unicode/names*)))))))
+                              (min (length +helm-unicode/ucs-names-keys+)
+                                   (+ (length *helm-unicode/names*) increment))))
+             (progn (add-to-list 'candidate-list
+                                 (helm-unicode-format-char-pair
+                                  (cons k (gethash k +helm-unicode/ucs-names+))))
+                    (and show-progress?
+                         (progress-reporter-update helm-unicode/progress-reporter (+ (length *helm-unicode/names*) (length candidate-list))))))
+           (setq *helm-unicode/names* (nconc *helm-unicode/names* candidate-list))))))
 
 (defun helm-unicode-build-candidates ()
   "Forces building the rest of the candidate list synchronously"
   (helm-unicode-build-candidates-incrementally (- (length +helm-unicode/ucs-names-keys+)
                                                   (length *helm-unicode/names*))
                                                t ;; show progress
-                                               ))
+                                               )
+  (progress-reporter-done helm-unicode/progress-reporter))
 
 (defun helm-unicode-load-in-background ()
   (setq helm-unicode-timer
@@ -95,10 +102,10 @@
   (helm-build-sync-source "unicode-characters"
     :candidates *helm-unicode/names*
     :filtered-candidate-transformer (lambda (candidates _source) (sort candidates #'helm-generic-sort-fn))
-    :action '(("Insert Character" . helm-unicode-insert-char))))
+    :action '(("Insert character" . helm-unicode-insert-char))))
 
 (defun helm-unicode-source ()
-  "Builds the helm Unicode source.  Initialize the lookup cache if necessary."
+  "Builds the helm Unicode source. Initialize the lookup cache if necessary."
   (if (>= (length *helm-unicode/names*) (length +helm-unicode/ucs-names-keys+))
       (build-helm-source)
     (progn (helm-unicode-build-candidates)
@@ -114,8 +121,10 @@
 
 With prefix ARG, reinitialize the cache."
   (interactive "P")
-  (when arg (setq *helm-unicode/names* nil))
+  (when arg (setq *helm-unicode/names* nil
+                  helm-unicode/progress-reporter nil))
   (helm :sources (helm-unicode-source)
+        :history 'helm-unicode/history
         :buffer "*helm-unicode-search*"))
 
 (provide 'helm-unicode)
