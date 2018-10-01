@@ -76,7 +76,7 @@
              (add-to-list 'candidate-list
                           (helm-unicode-format-char-pair
                            (cons k (gethash k +helm-unicode/ucs-names+)))))
-           (nconc *helm-unicode/names* candidate-list)
+           (setq *helm-unicode/names* (nconc *helm-unicode/names* candidate-list))
            (and show-progress?
                 (progress-reporter-update helm-unicode/progress-reporter (length *helm-unicode/names*)))))))
 
