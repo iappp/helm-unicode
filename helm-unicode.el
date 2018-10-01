@@ -39,11 +39,16 @@
   "Builds the candidate list."
   (let* ((un (ucs-names))
          (candidate-list '())
-         (unames (if (hash-table-p un)
-                     (maphash #'(lambda (k v) (add-to-list 'candidate-list (list k v))) un)
-                   un
-                  )))
-    candidate-list))
+         (pr (make-progress-reporter "Collecting Unicode symbols…"
+                                     0 (length (hash-table-keys un))))
+         (unames (when (hash-table-p un)
+                   (maphash
+                    #'(lambda (k v)
+                        (add-to-list 'candidate-list
+                                     (helm-unicode-format-char-pair (cons k  v)))
+                        (progress-reporter-update pr (length candidate-list)))
+                    un))))
+    (sort candidate-list #'string-lessp)))
 
 (defun helm-unicode-source ()
   "Builds the helm Unicode source.  Initialize the lookup cache if necessary."
