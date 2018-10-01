@@ -39,7 +39,7 @@
   "Builds the candidate list."
   (let* ((un (ucs-names))
          (candidate-list '())
-         (pr (make-progress-reporter "Collecting Unicode symbols…"
+         (pr (make-progress-reporter "Collecting Unicode symbols… "
                                      0 (length (hash-table-keys un))))
          (unames (when (hash-table-p un)
                    (maphash
@@ -67,7 +67,7 @@
 
 ;;;###autoload
 (defun helm-unicode (arg)
-  "Precofigured `helm' for looking up unicode characters by name.
+  "Preconfigured `helm' for looking up unicode characters by name.
 
 With prefix ARG, reinitialize the cache."
   (interactive "P")
