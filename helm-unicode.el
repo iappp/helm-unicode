@@ -37,12 +37,13 @@
 
 (defun helm-unicode-build-candidates ()
   "Builds the candidate list."
-  (let ((unames (if (hash-table-p (ucs-names))
-                    (mapcar (lambda (elem) `(,elem . ,(gethash elem (ucs-names)))) (hash-table-keys (ucs-names)))
-                  (ucs-names))))
-    (sort
-     (mapcar 'helm-unicode-format-char-pair unames)
-     #'string-lessp)))
+  (let* ((un (ucs-names))
+         (candidate-list '())
+         (unames (if (hash-table-p un)
+                     (maphash #'(lambda (k v) (add-to-list 'candidate-list (list k v))) un)
+                   un
+                  )))
+    candidate-list))
 
 (defun helm-unicode-source ()
   "Builds the helm Unicode source.  Initialize the lookup cache if necessary."
